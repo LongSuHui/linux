@@ -1,0 +1,87 @@
+######lvm#######
+pv	##物理卷
+	被lv命令处理过的物理分区
+
+vg	##物理卷组
+	被组装到一起的物理卷
+
+pe	##物理扩展
+	lvm设备的最小存储单元,lvm是pe的整数倍
+
+lvm	##逻辑卷
+	直接使用的设备，可以增大缩减并保持原有数据不变
+
+##lvm建立##
+watch -n 1 'pvs;vgs;lvs;df -h /mnt'
+1.分区并时定分区标签未8e
+pvcreate /dev/vdb1
+vgcreate vg0 /dev/vdb1
+lvcreate -L 20M -n lv0 vg0
+mkfs.xfs /dev/vg0/lv0
+mount /dev/vg0/lv0 /mnt
+df -H /mnt
+
+##lvm的拉伸##
+
+lvm支持热拉伸
+
+1.当vg中的剩余容量充足情况
+lvextend -L 80M /dev/vg0/lv0 		##拉伸设备
+xfs_growfs /dev/vg0/lv0		##拉伸文件系统
+
+
+2.当vg中的容量不足时
+再次建立分区并修改标签8E
+pvcreate /dev/vdb2
+vgextend vg0 /dev/vdb2		##拉伸物理卷组
+lvextend -L 200M vg0
+xfs_growfs /dev/vg0/lv
+
+3.针对ext文件系统的设备的拉神和缩减
+umount /mnt
+mkfs.ext4 /dev/vg0/lv0
+mount /dev/vg0/lv0 /mnt
+
+##拉伸
+lvextend -L 250M /dev/vg0/lv0
+resize2fs /dev/vg0/lv0
+
+##缩减
+umount /dev/vg0/lv0		##不支持热缩减
+e2fsck -f /dev/vg0/lv0
+resize2fs /dev/vg0/lv0 100M
+lvreduce -L 100M /dev/vg0/lv0
+
+mount /dev/vg0/lv0 /mnt
+
+##缩减vg
+vgreduce vg0 /dev/vdb2
+vgextend vg0 /dev/vdb2
+
+##数据迁移（移除含有数据的设备）
+pvmove /dev/vdb1 /dev/vdb2
+vgreduce vg0 /dev/vdb1
+pvremove /dev/vdb1
+
+
+####lvm快照####
+lvcreate -L 40M -n lv0-backup -s /dev/vg0/lv0
+mount /dev/vg0/lv0-backup  /mnt
+如果截取数据大于40M，会损坏设备
+dd if=/dev/zero of=/mnt/file bs=1M count=60
+再次挂载会报错
+
+umont /mnt
+lvremove /dev/vg0/lv0-backup
+lvcreate -L 40M -n lv0-backup -s /dev/vg0/lv0	##相当于设备reset
+再次挂载可以看原设备数据
+
+
+
+####全部删除还原####
+lvremove /dev/vg0/lv0-backup	##先删快照，再删设备本身
+lvremove /dev/vg0/lv0
+vgremove vg0
+pvremove /dev/vdb2
+fdisk /dev/vdb
+d *

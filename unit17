@@ -1,0 +1,175 @@
+####ftp服务####
+#先介绍ftp，连接演示，介绍lftp
+先修改selinux为disabled
+##1.ftp的启用
+yum install -y vsftpd
+systemctl start vsftpd
+systemctl enable vsftpd
+
+浏览器尝试访问，失败
+
+图形展示防火墙
+
+firewall-cmd --permanent --add-service=ftp
+firewall-cmd --reload
+firewall-cmd --list-all
+
+lftp 和 vsftpd不是一个东西
+浏览器访问: ftp://172.25.254.100
+或者远程访问 lftp 172.25.254.100
+
+netstat -antulpe | grep vsftpd
+21 主动模式: 连接端口为21，数据传输端口，随即开一个，客户端主动访问服务端叫主动
+被动是服务端把东西推送到客户端
+
+##2.ftp基本信息
+访问数据端口：21
+数据传输端口：>1024的随即端口
+
+默认发布目录： /var/ftp		##普通用户登录上去默认在自己家目录
+访问方式
+	lftp 172.25.254.100		##匿名登录	--> /var/ftp
+	lftp 172.25.254.100 -u student	##用户登录	--> /home/student
+
+配置文件：
+	/etc/vsftpd/vsftpd.conf
+
+
+##3.ftp的安全部署
+500报错：权限过大
+530报错：认证失败
+550报错：服务本身不允许
+553报错：文件系统权限过小
+
+anonymous_enable=YES | NO	##匿名用户是否可以登录
+local_enable=YES | NO		##本地用户是否可以登录
+write_enable=YES | NO		##用户是否可写
+
+##4.匿名用户
+pub目录只对超级用户可写
+
+#匿名用户可写
+先直接上传，报错，再改目录权限为777，查看上传用户
+chmod 775 /var/ftp/pub
+chgrp ftp /var/ftp/pub
+
+vim /etc/vsftpd/vsftpd.conf
+anon_upload_enable=YES
+
+systemctl restart vsftpd
+
+#匿名用户可下载
+anon_world_readable_only=NO
+
+#匿名用户建立目录
+anon_mkdir_write_enable=YES
+
+#匿名用户是否可以删除和重命名
+anon_other_write_enable=YES
+
+#匿名用户家录修改
+anon_root=/westos
+
+#匿名用户上传文件默认权限修改
+anon_umask=xxx	改成022
+
+#匿名用户使用的用户身份修改
+chown_uploads=YES
+chown_username=student
+
+#最大上传速率
+anon_max_rate=102400 单位：字节 100k
+dd if=/dev/zero of=/mnt/bigfile bs=1M count=1500
+上传测试
+
+#最大链接个数
+max_clients=2
+
+#本地用户家目录修改
+local_root=/westos
+
+#本地用户上传文件权限
+local_umask=xxx
+
+#限制本地用户浏览根目录
+所有用户被锁定到自己的加目录中（修改之前不仅可以在自己家目录，还可以看其他）
+chroot_local_user=YES	##此参数要求去掉自己对加目录的写权限,man看以下这个参数
+chmod u-w /home/*
+
+用户黑名单建立
+chroot_local_user=NO
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+
+用户白名单建立
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+
+#限制本地用户登录
+vim /etc/vsftpd/ftpusers		##永久用户黑名单
+vim /etc/vsftpd/user_list		##用户临时黑名单
+
+用户白名单设定
+userlist_deny=NO
+/etc/vsftpd/user_list			##参数设定，此文件变成用户白名单，只在名单中出现的用户可以登录ftp
+
+
+#ftp虚拟用户的设定
+（创建虚拟帐号身份）
+vim /etc/vsftpd/westosfile		##文件名称任意
+ftpuser1
+123
+ftpuser2
+123
+ftpuser3
+123
+
+#上面的密码是明文的，不安全，要进行加密,T表示transfer，t表示转换方式为hash
+db_load -T -t hash -f /etc/vsftpd/westosfile /etc/vsftpd/westosfile.db
+
+#查看vsftpd.conf，认证的时候是使用pam认证
+#yum search pam ---> pam.x86_64
+#rpm -qc pam.x86_64
+#cd /etc/pam.d，目录里有个vsftpd文件
+#认证的时候就是在这个文件里做用户名和密码的比对
+#系统里有pam这个进程的，ps aux | grep pam
+
+vim /etc/pam.d/westos			##文件名称任意
+account		required	pam_userdb.so	db=/etc/vsftpd/westosfile
+auth		required	pam_userdb.so	db=/etc/vsftpd/westosfile
+
+#account表示帐号名称，auth表示密码，先后顺序不分
+#required是通过了用户名认证才能进入下一步认证，然后使用pam_userdb.so这个插件来验证
+#db=/etc/vsftpd/westosfile文件后不要写.db，系统会自动加
+#
+vim /etc/vsftpd/vsftpd.conf
+pam_service_name=westos
+guest_enable=YES
+
+虚拟帐号身份指定
+guest_username=westos		##默认使用虚拟用户时，登录后在pub目录，要想改变，修改此参数，修改后登录到westos家目录
+chmod u-w /home/ftpuser
+
+虚拟帐号家目录独立设定
+vim /etc/vsftpd/vsftpd.conf
+local_root=/ftphome/$USER
+user_sub_token=$USER		##$USER是shell里的用法，要让配置文件里支持，必须加这个参数
+
+mkdir /ftphome/user1/user1dir -p
+mkdir /ftphome/user2/user2dir -p
+
+虚拟帐号配置独立
+chgrp ftp /ftphome -R
+ll /ftphome/user*
+chmod 775 /ftphome/user1/user1dir
+chmod 775 /ftphome/user2/user2dir
+
+vim /etc/vsftpd/vsftpd.conf
+user_config_dir=/etc/vsftpd/userconf
+mkdir -p /etc/vsftpd/userconf
+
+vim /etc/vsftpd/userconf/user1
+在此文件中设定配置文件中的所有参数，此文件的优先级高
+例如：anon_upload_enable=YES
+这样user1可以上传，user2不行

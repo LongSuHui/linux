@@ -1,0 +1,73 @@
+##输入法调整##
+
+Application  ----->System Tools -----> Settings ------>  Rejion&language -----> Input source ---->+ ---->Chinese ---->Pinyin
+
+shift 是切换语言的方式
+ 
+# # 虚拟机管理  ###
+
+##常规操作
+[kiosk@foundation0 Desktop]$ rht-vmctl    start     	desktop 		##打开虚拟机	
+[kiosk@foundation0 Desktop]$ rht-vmctl    view    	desktop			##显示虚拟机 
+[kiosk@foundation0 Desktop]$ rht-vmctl    poweroff    	desktop 		##关闭虚拟机
+Powering off desktop..
+[kiosk@foundation0 Desktop]$ rht-vmctl 	  reset 	desktop 		##重置虚拟机，当虚拟机出现任何解决不了的问题时来用此命令还原
+
+
+##可能出现的报错##
+
+[kiosk@foundation0 Desktop]$ rht-vmctl view desktop			##当虚拟机没有开启时不能直接显示 ，可以用开启虚拟机的方式解决
+Error: unable to view desktop - not currently running.
+
+
+[kiosk@foundation0 Desktop]$ rht-vmctl start desktop 			##当虚拟机已经运行时不能再次运行
+Error: desktop not started (is already running)ht-vmctl
+
+
+
+###虚拟机信息  ###
+desktop  
+用户		密码
+student        student
+root		redhat
+
+server
+
+用户		密码
+student		student
+root		redhat
+
+root登陆
+notlist -----> root  ----> redhat
+
+
+####在linux中如何运行命令#####
+
+命令			参数			目标
+ls			-s			test
+ls			--size			test
+
+注意：
+	1.参数用来指定命令的某些功能，可以加也可以不加
+	2.命令和参数和目标之间要用空格分开
+	3.参数中“-” 表示单词的缩写，“--”表示单词的全拼
+	4.在执行命令时通常遵循这些规则，特殊情况除外
+	5.命令必须在行提示符之后输入，没有行提示符的输入时无效的。
+
+
+###命令行提示符中[3]字符的含义##########
+[kiosk@foundation0 Desktop]$
+  [1][2]   [3]      [4]   [5]
+
+[1]kiosk:
+	运行shell的用户是谁
+[2]@:
+	分割符号
+[3]foundation0:
+	主机短名称
+[4]Desktop:
+	所在当前主机的位置
+[5]$:
+	身份提示符号
+	$表示普通用户
+	#表示超级用户

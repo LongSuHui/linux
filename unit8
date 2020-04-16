@@ -1,0 +1,57 @@
+###############文件在系统中的传输############
+1.scp
+	scp   file	user@ip:/dir
+	scp user@ip:/file dir
+
+2.rsync		##远程同步，速度块，默认会忽略，文件属性，链接文件，设备文件
+#mkdir /mnt/westos; touch /mnt/westos/file{1..5}; chmod 777 file* ; chown student.student file*
+#ln -s /mnt/westos/file1 /mnt/westos/westos1
+	-r	##同步目录
+	-p	##同步权限
+	-o	##同步文件所有人
+	-g	##同步文件所有组
+	-l	##同步链接
+	-D	##同步设备文件		##rsync -rpogtl /dev/pts root@172.25.254.200:/mnt
+	-t	##同步文件时间戳
+
+3.tar		##归档文件，（把很多个文件变成1个文件）
+# tar cf etc.tar /etc
+# tar tf etc.tar
+# tar f etc.tar --get file	
+	-c	##创建
+	-x	##解档
+	-v	##显示过程
+	-f	##指定归档文件名称
+	-t	##查看归档文件内容
+	-r	##添加文件到归档中
+	--get	##解档指定文件
+	--delete ##删除归档中的指定文件
+	-C	##指定解档目录
+
+	
+4.压缩
+	zip
+	
+	zip -r xxx.tar.zip	xxx.tar
+	unzip	xxx.tar.zip
+
+	gz
+	gzip xxx.tar
+	gunzip xxx.tar.gz
+	====
+	tar zcf xxx.tar.gz /xxx
+	tar zxf xxx.tar.gz
+
+	bz2
+	bzip2 xxx.tar
+	bunzip2 xxx.tar.bz2
+	===
+	tar jcf xxx.tar.bz2 /xxxx
+	tar jxf xxx.tar.bz2 
+
+	xz
+	xz xxx.tar
+	unxz	xxx.tar.xz
+	====
+	tar Jcf xxx.tar.xz  /xxx
+	tar Jxf xxx.tar.xz

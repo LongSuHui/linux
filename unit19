@@ -1,0 +1,91 @@
+##################
+#### 系统恢复 ####
+##################
+
+
+#1.硬盘引导阶段   mbr主引导记录的恢复
+#模拟问题：dd if=/dev/zero of=/dev/vda bs=446 count=1
+
+
+grub2-install    启动分区所在硬盘
+grub2-install  /dev/vda
+
+
+#2.文件引导阶段	
+#1)引导文件丢失
+
+/boot/grub2/grub.cfg
+#模拟问题： rm -fr /boot/grub2/grub.cfg
+
+#当系统没有从新启动时
+grub2-mkconfig > /boot/grub2/grub.cfg
+
+#当系统被重新启动
+grub > set root='hd0,msdos1'	##此位置是不固定的，位置指定/boot所在分区
+grub > linux16 /boot/vmlinuz-3.10.0-123.el7.x86_64 ro root=/dev/vda1 #跟分区的设备名称
+grub > initrd16 /boot/initramfs-3.10.0-123.el7.x86_64.img
+grub > boot
+#以上操作可以使系统正常启动，但是是临时的，所以进入系统后还是需要执行：
+grub2-mkconfig > /boot/grub2/grub.cfg
+
+
+#2）内核文件丢失
+#模拟问题： rm -fr /boot/vmlinuz-3.10.0-123.el7.x86_64
+
+进入到挽救模式
+chroot /mnt/sysimage
+mkdir /rhel7
+mount /dev/sr0 /rhel7
+cd /rhel7/Packages
+cp kernel-3.10.0-123.el7.x86_64.rpm /mnt
+cd /mnt
+rpm2cpio kernel-3.10.0-123.el7.x86_64.rpm | cpio -id
+cd  boot
+cp vmlinuz-3.10.0-123.el7.x86_64 /boot
+exit
+exit
+
+#3)系统初始化镜像文件丢失
+#模拟问题： rm -fr /boot/initramfs-3.10.0-123.el7.x86_64.img
+
+#当系统没有重启时
+mkinitrd /boot/initramfs-$(uname -r).img $(uname -r)
+
+#当系统重启后
+进入挽救模式
+chroot /mnt/sysimage
+mkinitrd /boot/initramfs-$(uname -r).img $(uname -r)
+
+
+#当/boot分区被删掉后
+进入到挽救模式
+chroot /mnt/sysimage
+mkdir /boot
+grub2-install /dev/vda
+mount /dev/cdrom /mnt
+rpm -ivh /mnt/Packages/kernel-3.10.0-123.el7.x86_64.rpm --force
+grub2-mkconifg > /boot/grub2/grub.cfg
+
+
+
+
+
+#4)当开机启动级别被篡改
+#错误形成
+systemctl set-default reboot.target
+
+#解决
+1.开机按上下键停止读秒
+2.按“E”进入编辑模式
+3.选择内核启动行
+linux16 /vmlinuz-xxxxxx ro xxxxxxxxxxxxxx     改变为：
+linux16 /vmlinuz-xxxxxx rw rd.break
+4.ctrl +x 
+5.chroot /sysroot
+6.rm -fr /etc/systemd/system/default.target
+7.ln -s /lib/systemd/system/graphical.target /etc/systemd/system/default.target
+8.exit
+
+
+
+

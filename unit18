@@ -1,0 +1,43 @@
+#################
+#### selinux ####
+#################
+
+#1.selinux
+内核级加强型防火墙
+
+1.针对文件，会对系统中每个文件添加安全上下文（context）
+2.针对进程，会对系统中的每个进程添加全上下文（context）
+3.会在系统服务上设定sebool开关
+4.当进程安全上下文和文件的安全上下文不匹配时，那么进程无法访问此文件
+5.sebool会限制服务的不安全功能，如果需要用此功能，必须调整sebool值
+
+
+#2.管理selinux
+
+
+* selinux的开关
+vim /etc/sysconfig/selinux
+SELINUX=enforcing	##selinux开启，级别为强制
+SELINUX=permissive	##selinux开启，级别为警告
+SELINUX=disabled	##selinux关闭，
+setenforce 0|1		##更改selinux当前的级别0警告1标示强制
+getenforce 		##查看selinux的状态
+注意：当selinux从关到开，或者从开到关，需要重启系统
+*selinux中对文件安全上下文的设定
+
+#临时更改适用于更改文件
+chcon -t 安全上下文  文件
+chcon -t public_content_t /var/ftp/file
+#永久更改文件安全上下文
+semanage fcontext -l
+semanage fcontext -a -t public_content_t '/westos(/.*)?'
+restorecon -RvvF /westos/
+
+*selinux的bool值的设定
+sebool值是控制服务功能开关
+
+getsebool  | grep 服务名称
+setsebool -P bool值  on |off	
+
+#selinux的排错
+

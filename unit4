@@ -1,0 +1,135 @@
+##############用户管理######################
+
+
+
+
+########1.用户存在的意义##########
+########2.组存在的一意义##########
+
+
+#######3.用户的查看########
+1）
+	查看当前用户
+	whoami		##查看当前用户
+2）
+	系统中用户的查看
+	id 		##查看指定用户id信息
+	id
+		-u	##查看用户的uid
+		-g	##查看用户的gid
+		-G	##查看用户所在的所有组的id
+		-n	##显示名字而不显示id数字
+
+
+####	用户切换   ####
+	su - 用户名称
+	su - 中 “-” 标示在用户身份切换时同时切换当前用户的环境
+	su - 执行时高级用户切换到低级用户不需要密码，低级用户切换到高级需要，平级用户切换切换也需要
+	注意：每次su切换到其他用户操作之后必须退出，然后再次切换到其他用户
+
+
+#### 用户在系统中的存储方式  ###
+/etc/passwd 
+	用户信息文件
+	用户名称：密码：uid：gid：说明：家目录：默认shell
+
+/etc/group
+	用户组信息文件
+	组的名字：组密码：组id：组成员
+/etc/shadows
+	认证信息文件
+
+/etc/skel/.*
+	默认开启shell的配置，用户的骨文件
+
+/home/username
+	用户的家目录
+	
+#### 用户管理命令 ###
+
+1）用户的删除
+	userdel
+	userdel student		##删除用户但不删除用户的配置文件
+	userdel -r student	##删除用户并删除用户的配置文件
+
+2）用户建立
+用户信息监控命令
+	watch -n 1 'tail -n 3 /etc/passwd /etc/group;ls -l /home'
+
+useradd		##建立用户的，建立用户时，读取/etc/login.defs 文件内容确定规则
+
+useradd -u 8888 westos		##指定用户uid
+useradd -g 21	westos		##指定用户初始组id，"21用户组必须是存在的"
+useradd -G 21	westos		##指定用户的附加组id “21用户组必须存在”
+useradd -c "hello" westos	##指定用户的说明
+useradd -d /home/lee westos	##指定用户的家目录
+useradd -s /bin/sh westos	##指定用户的默认shell
+
+groupadd 	##建立用户组
+groupadd -g 888	##建立用户组并指定用户组的id
+groupdel	##删除用户组
+
+3)更改用户信息
+usermod
+usermod -l 新名称	westos		##更改用户的名称
+usermod -u 6666		westos		##更改用户uid
+usermod -g 21		westos		##更改用户的初始组
+usermod -G 21		westos		##更改用户的附加组
+usermod -aG 72		westos		##添加用户的附加组
+usermod -G ""		westos		##删除用户所有附加组的身份
+usermod -c "hahahah"	westos		##指定用户说明文字
+usermod -d /home/lee	westos		##更改用户家目录的指向
+usermod -md /home/lee	westos		##更改用户家目录
+usermod -s /bin/sh	westos		##更改用户的shell
+usermod -L 		westos		##冻结用户
+usermod -U		westos		##解锁用户
+
+
+
+####### 用户认证信息 #####
+/etc/shadows		##记录用户认证信息
+此文件一共有九列：
+用户名称：用户密码：用户密码最后一次被更改的时间：用户密码最短有效期：用户密码最长有效期：
+密码警告期限：用户非活跃天数：用户到期日：用户自定义列，目前没有启用
+
+passwd -S westos	##查看westos用户密码信息
+
+
+#用户名称#
+用户密码
+	passwd 		westos	##更改westos密码
+	passwd  -l 	westos	##在用户密码前加入“！！”
+	passwd  -u 	westos	
+	usermod -L 	westos	##在用户密码前加入“！”
+	usermod -U 	westos	##在密码不为空时使用
+	passwd  -d 	westos	##清空westos密码
+注意：
+	普通用户改密码时
+	1.必须知道当前永久原始密码
+	2.密码不能和帐号名称相似
+	3.密码不能是纯数字或纯字母
+	4.密码不能是有序的字母和数字的组合
+
+
+#用户密码最后一次被更改的时间#
+	passwd -e westos	##会改变用户最后一次更改密码时间为0.
+				##用户在登陆时会被强制更改密码
+	chage -d 0 westos	##两个命令功能类似
+
+
+#用户密码最短有效期#
+	passwd -n 1 westos	##westos用户在1天之内不能修改密码
+	chage -m 1 westos		
+
+#用户密码最长有效期#
+	passwd -x 30	westos	##设定westos在30天内必须改密码
+	chage -M 40	westos
+#密码警告期限#
+	passwd -w 2	westos	##密码过期前两天有警告输出
+	chage -W 2	westos
+#用户非活跃天数#
+	passwd -i 1	westos	##密码过期后仍可登陆系统的天数
+	chage -I 1	westos
+#用户到期日#
+	chage -E  2018-11-11 westos	##westos用户在2018-11-11日会被冻结
+#用户自定义列，目前没有启用#

@@ -1,0 +1,251 @@
+#######linux下的网络配置############
+###1.什么是IP ADDRESS
+	internet protocol ADDRESS    ##网络进程地址
+	
+	ipv4	internet protocol version 4
+	
+	1.2x32	##二进制，32位
+	ip是由32个01组成
+	11111110.11111110.11111110.11111110 = 254.254.254.254
+
+###2.子网掩码
+	用来划分网络区域
+	子网掩码非0的位对应的ip上的数字表示这个ip的网络位
+	子网掩码0位对应的数字是ip的主机位
+	网络位表示网络区域
+	主机位表示网络区域里某台主机
+
+###3.ip通信判定
+	网络位一致，主机位不一致的2个IP可以直接通讯
+	172.25.254.1/24    24=255.255.255.0
+	172.25.254.2/24
+	172.25.0.1/16
+
+####4.网络设定工具
+		
+	ping 		##检测网络是否通畅
+	ifconfig	##查看或设定网络接口
+	ifconfig	##查看
+	ifconfig device ip/24	##设定
+	ifconfig device down	##关闭
+	ifconfig device up	##开启
+
+	ip addr		##检测或设定网络接口
+	ip addr show	##检测
+	ip addr add ip/24 dev device	##设定
+
+"注意：	device的名字一个物理事实，看到什么命字只能用什么命字"
+
+####5.图形方式设定ip
+1.nm-connection-editor		##nm = NetworkManager，图形方式改了ip重启网络（有可能）不生效
+systemctl stop NetworkManager	##记录网络服务状态
+systemctl restart network
+systemctl start NetworkManager
+
+
+2.nmtui
+	
+
+####6.命令方式设定网络
+nmcli			##NetworkManager必须开启
+
+nmcli device connect eth0	##启用eth0网卡
+nmcli device disconnect eth0	##关闭eth0网卡
+nmcli device show eth0		##查看网卡信息
+nmcli device status eth0	##查看网卡服务接口信息
+
+##用nm-connection-editor改名称为westos
+nmcli connection show 
+nmcli connection down westos
+nmcli connection up westos
+nmcli connection delete westos
+nmcli connection add type ethernet con-name westos ifname eth0 ip4 172.25.254.100/24	##对应nm-connection-editor来写
+nmcli connection modify westos  ipv4.method auto
+nmcli connection modify westos  ipv4.method manual
+nmcli connection modify westos  ipv4.addresses 172.25.254.200/24
+
+####7.管理网络配置文件
+网络配置目录
+/etc/sysconfig/network-scripts/
+网络配置文件的名命规则
+ifcfg-xxxx
+DEVICE=xxx		##设备名称
+BOOTPROTO=dhcp|static|none	##设备工作方式
+ONBOOT=yes			##网络服务开启时自动激活网卡
+IPADDR=				##IP地址
+PREFIX=24			##子网掩码
+NETMASK=255.255.255.0		##子网掩码
+NAME=				##接口名称(可有可无)
+
+#nmcli connection delete westos	先删除，再添加（删除的是配置文件）
+
+示例：
+静态网络设定文件
+vim /etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+ONBOOT=yes
+IPADDR=172.25.254.100
+NETMASK=255.255.255.0
+BOOTPROTO=none
+NAME=westos		##加与不加在图形化看区别
+##不要乱动物理机上br0
+
+systemctl restart network
+
+一块网卡上配置多个IP
+vim /etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+ONBOOT=yes
+IPADDR0=172.25.254.100
+NETMASK0=255.255.255.0
+BOOTPROTO=none
+NAME=westos
+IPADDR1=172.25.0.100
+PREFIX1=24
+
+systemctl restart network
+
+ip addr show eth0
+
+
+
+####8.lo回环接口
+回环接口------人的神经----127.0.0.1-----localhost
+ping localhost
+
+
+####9.网关#####
+
+1.把真实主机变成路由器
+systemctl stop libvirtd
+systemctl restart firewalld 
+systemctl start libvirtd
+
+firewall-cmd --list 
+firewall-cmd --permanent --add-masquerade
+firewall-cmd --reload
+firewall-cmd --list-all
+
+public (default, active)
+  interfaces: br0 enp0s25 wlp3s0
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: yes   <<<地址伪装功能开启，真实主机变成路由器
+  forward-ports: 
+  icmp-blocks: 
+  rich rules:
+
+
+2.设定虚拟机网关
+
+vim /etc/sysconfig/network	##全局网关，针对所有没有设定网关的网卡生效
+GATEWAY=172.25.254.250		
+
+vim /etc/sysconfig/network-scripts/ifcfg-eth0
+GATEWAY0=172.25.254.250		##档网卡中设定的IP有多个时，指定对于那个IP生效
+GATEWAY=172.25.254.250		##档网卡中设定的IP只有一个时
+
+
+route -n 		##查看网关
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0        "172.25.254.250"  0.0.0.0         UG    1024   0        0 eth0
+172.25.0.0      0.0.0.0         255.255.255.0   U     0      0        0 eth0
+172.25.254.0    0.0.0.0         255.255.255.0   U     0      0        0 eth0
+
+##如果学生连不上vnc
+##firewall-cmd --permanent --add-source=172.25.254.0/24 --zone=trusted
+
+##虚拟机网卡有问题就删了重新加
+
+##10.设定dns
+domain name server == 域名解析服务  ##解析就是把域名变成IP
+
+vim /etc/hosts			##本地解析文件
+ip	域名
+220.181.111.188     www.baidu.com
+
+vim /etc/resolv.conf		##dns的指向文件
+nameserver 114.114.114.114	##当需要某个域名的IP地址时去问114.114.114.114
+##陕西省dns 218.30.19.50
+vim /etc/sysconfig/network-scripts/ifcfg-xxxx
+DNS1=114.114.114.114
+
+
+注意：
+档网络工作模式为dhcp时
+系统会自动获得ip 网关 dns
+那么/etc/resolv.conf会被获得到的信息修改
+如果不需要获得dns信息
+在网卡配置文件中加入
+PEERDNS=no
+
+##网卡参数怎么写：/usr/share/doc/initscripts-9.49.37/sysconfig.txt
+##11.设定解析的优先级
+系统默认：
+/etc/hosts   >   /etc/resolv.conf
+
+vim /etc/nsswitch.conf
+39 hosts:	files dns		##/etc/hosts优先
+
+vim /etc/nsswitch.conf
+39 hosts:       dns files		##/etc/resolv.conf dns指向优先
+
+####12.dhcp服务配置
+先reset两台虚拟机
+yum install dhcp -y
+cp /usr/share/doc/dhcp*/dhcpd.conf.example /etc/dhcp/dhcpd.conf
+vim /etc/dhcp/dhcpd.conf
+
+# dhcpd.conf
+# #
+# Sample configuration file for ISC dhcpd
+#
+
+# option definitions common to all supported networks...
+option domain-name "westos.com";		##域名
+option domain-name-servers 114.114.114.114;	##dns
+
+default-lease-time 600;				##默认租约
+max-lease-time 7200;				##最长租约
+
+# Use this to enble / disable dynamic dns updates globally.
+#ddns-update-style none;
+
+# If this DHCP server is the official DHCP server for the local
+# network, the authoritative directive should be uncommented.
+#authoritative;
+
+#Use this to send dhcp log messages to a different log file (you also
+# have to hack syslog.conf to complete the redirection).
+log-facility local7;
+
+# No service will be given on this subnet, but declaring it helps the 
+# DHCP server to understand the network topology.
+27	删除
+28	删除
+
+# This is a very basic subnet declaration.
+
+subnet 172.25.254.0 netmask 255.255.255.0 {		##子网设定
+  range 172.25.254.160 172.25.254.200;			##IP地址池
+    option routers 172.25.254.250;			##网关
+    }
+35行有面全删除
+
+##学生做实验时拔掉网线
+
+systemctl restart dhcpd
+systemctl stop firewalld 
+可以在服务端和客户端看到ip分配的记录
+服务端：/var/lib/dhcpd/dhcpd.leases
+客户端：/var/log/messages
+
+测试：
+在网络工作模式是dhcp的主机中重启网络
+可以看到
+ip
+GW
+dns
+全部获取成功
+

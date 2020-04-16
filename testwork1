@@ -1,0 +1,20 @@
+1.
+用命令和正则表达式按照要求建立文件
+
+2.
+用一条命令建立 12 个文件 WESTOS_classX_linuxY(X 的数值范围为 1-2 , Y 的数值范围为
+1-6)这些文件都包含在 root 用户桌面的 study 目录中
+
+3.
+用一条命令建立 8 个文件 redhat_versionX ( x 的范围为 1-8 )redhat_virsionX 这些文件都包含在 /tmp 目录中的 VERSION 中
+
+4.
+管理刚才信建立的文件要求如下
+用一条命令把 redhat_versionX 中的带有奇数的文件复制到桌面的 SINGLE 中
+用一条命令把 redhat_versionX 中的带偶数数的文件复制到 /DOUBLE 中
+用一条命令把 WESTOS_classX_linuxY 中 class1 的文件一动到当前用户桌面的 CLASS1 中
+用一条命令把 WESTOS_classX_linuxY 中 class2 的文件一动到当前用户桌面的 CLASS2 中
+
+5.
+备份 /etc 目录中所有带有名字带有数字并且以 .conf 结尾的文件到桌面上的 confdir 中
+删掉刚才建立或者备份的所有文件

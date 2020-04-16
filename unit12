@@ -1,0 +1,134 @@
+##########linux中的软件管理#########
+使用快照建立一个虚拟机
+关闭火墙
+设置主机名yum.example.com
+
+在浏览器中和图形模式查看软件包
+##1.使用已经网络安装资源安装软件##
+
+vim /etc/yum.repos.d/yum.repo				##文件名称必须以repo结尾
+[rhel7.2]						##仓库名称
+name=rhel7.2 source					##对软件源的描述
+baseurl=http://172.25.254.250/rhel7.2/x86_64/dvd	##网络安装源
+gpgcheck=0						##不检测gpgkey
+enabled=1						##此安装源语句块生效
+
+
+yum clean all						##清空系统中原有的yum信息
+
+
+##2.配置本地yum源###
+1.获得一个与本机系统版本一致的系统镜像
+
+2.挂载镜像
+mount  /xxx/xxxxxx.iso		/rhel7.2
+
+3.设定永久挂载
+vim /etc/rc.d/rc.local
+mount  /xxx/xxxxxx.iso          /rhel7.2
+
+chmod 755 /etc/rc.d/rc.local		##在系统开机时会自动执行此脚本
+
+4.设定系统安装源指向
+mkdir /etc/yum.repos.d/backup
+mv /etc/yum.repos.d/* /etc/yum.repos.d/backup
+vim /etc/yum.repos.d/yum.repo
+[rhel7.2]
+name=rhel7.2
+baseurl=file:///rhel7.2
+gpgcheck=0
+
+yum clean all
+
+yum install httpd -y
+
+##3.共享型yum源的部署
+1.在一台已经建立好本地yum源的主机中安装httpd
+yum install httpd 
+
+2.配置网络yum源
+systemctl start httpd 
+systemctl stop firewalld 
+systemctl enable httpd 
+systemctl disable firewalld
+
+mkdir /var/www/html/rhel7.2
+mount /xxxx/xxxxx.iso /var/www/html/rhel7.2
+vim /etc/rc.d/rc.local
+mount /xxxx/xxxxx.iso /var/www/html/rhel7.2
+chmod +x /etc/rc.d/rc.local
+
+测试：
+在浏览器中输入地址:
+http://ip/rhel7.2
+http://172.25.254.10/rhel7.2   <<<<此地址就是网络yum源地址
+
+
+#####4.yum命令######
+1.yum命令的使用必须是在yum源搭建成功后才能正常运行
+
+2.yum命令的详细用法
+
+yum	clean	all		##清除原有yum缓存
+	repolist		##列出仓库信息
+	install	software	##安装
+	update			##更新 可更新单个软件
+	list	software	##查看软件
+	list	all		##查看所有软件
+	list	installed 	##列出已安装软件
+	list	available	##列出可安装软件
+	reinstall software	##重新安装 举例删除/usr/bin/firefox
+	remove 	software	##卸载
+	info	software	##查看软件信息
+	search	software信息	##根据软件信息查找软件
+	whatprovides file	##根据文件找出包含此文件的软件  举例删除/bin/rm
+	groups	list		##列出软件组
+	groups	info		##查看软件组的信息
+	groups	install sfgroup	##安装软件组
+	groups	remove	sfgroup	##卸载软件组（只卸载软件，不卸载依赖性）
+
+yum whatprovides */lftp
+
+3.yum软件屏蔽
+yum list all 可以看到32位和64位的包
+vim /etc/yum.conf
+exclude=*.i686 zsh.x86_64(屏蔽单个软件)	
+
+###5.用rpm命令处理软件##
+举例安装kolor绘图工具 wps
+rpm	-i		##安装
+	-v		##显示过程
+	-h		##hash加密
+	-e		##卸载	卸载wps
+	-q		##查看
+	-a		##所有
+	-p		##软件包	rpm -qp linuxqq(查看软件包在系统中安装后的名字)
+	-ql		##查看软件在系统中的安装文件路径
+	-qlp		##查看未安装的软件包在系统中如果安装后产生文件的路径
+	-qf		##根据某个文件找出此文件属于那个安装包
+	-qc		##查看软件的配置文件名称
+	-qd		##查看软件的帮助文件
+	--scritps	##查看脚本
+	--nodeps	##安装软件忽略软件倚赖
+	--force		##强行安装软件     举例wps强行安装
+	-Kv		##检测软件包是否被篡改	检测Kolor-，再echo hello >> Kolor-
+
+rpm -qip FluffyMcAwesome-B-6.4.0-11.r19335.x86_64.rpm ##查看信息
+
+rpm -qp linuxqq-v1.0.2-beta1.i386.rpm ##查看安装后的名称
+rpm -qp FluffyMcAwesome-A-6.4.0-11.r19335.x86_64.rpm --scripts ##查看安装过程执行的脚本
+rpm -qp FluffyMcAwesome-B-6.4.0-11.r19335.x86_64.rpm --scripts 看哪个可以装
+
+####6.第三方软件仓库的搭建###
+
+1.把所有的rpm包放到一个目录中
+2.createrepo -v /存放软件包的目录	##命令执行成功会生成repodate目录
+3.vim /etc/yum.repos.d/yum.repo
+[software]
+name=software
+baseurl=file:///software
+gpgcheck=0
+
+
+yum clean all
+yum list linux

@@ -1,0 +1,101 @@
+#########sshd服务#########
+起两台虚拟机，改ip，主机名
+删除 ~/.ssh
+
+##1.sshd简介###
+sshd= secure shell
+可以通过网络在主机中开机shell的服务
+
+客户端软件<C-F9>
+	sshd
+
+连接方式：
+	ssh    username@ip	##文本模式的链接
+	ssh -X username@ip	##可以在链接成功后开机图形
+
+	注意：
+		第一次链接陌生主机是要建立认证文件
+		所以会询问是否建立，需要树入yes
+		在次链接此台主机时，因为已经生成~/.ssh/know_hosts文件所以不需要再次输入yes
+
+远程复制：
+	scp file root@ip:dir		##上传(dir为绝对路径)
+	scp root@ip:file dir		##下载
+
+
+###2.sshd 的key认证 #######
+
+1.生成认证KEY
+[root@server ~]# ssh-keygen 		##生成密钥的命令
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa):	##指定保存加密字符的文件（使用默认） 
+Enter passphrase (empty for no passphrase): 			##设定密码（使用空密码）
+Enter same passphrase again: 					##确认密码
+Your identification has been saved in "/root/.ssh/id_rsa".	##私钥（钥匙）	
+Your public key has been saved in "/root/.ssh/id_rsa.pub".	##公钥（锁）
+The key fingerprint is:
+86:61:e4:f1:6e:51:3a:4b:d7:3c:1b:2f:e8:3f:b0:5d root@server.example.com
+The key's randomart image is:
++--[ RSA 2048]----+
+|      o   .      |
+|     o o o o     |
+|      + * . =    |
+|     . = = . =   |
+|      . S . o .  |
+|       o ..  .E  |
+|          .+ .   |
+|          ..o    |
+|            ..   |
++-----------------+
+
+2.加密服务
+[root@server .ssh]# ssh-copy-id -i /root/.ssh/id_rsa.pub root@172.25.254.200   ##加密sshd服务
+The authenticity of host '172.25.254.200 (172.25.254.200)' can't be established.
+ECDSA key fingerprint is eb:24:0e:07:96:26:b1:04:c2:37:0c:78:2d:bc:b0:08.
+Are you sure you want to continue connecting (yes/no)? yes
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+root@172.25.254.200's password: 
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh 'root@172.25.254.200'"
+and check to make sure that only the key(s) you wanted were added.
+
+[root@server .ssh]# ls
+authorized_keys  id_rsa  id_rsa.pub  known_hosts
+    ^
+ 此文件出现表示加密完成
+
+3.分发钥匙
+scp /root/.ssh/id_rsa root@172.25.254.100:/root/.ssh/
+
+4.测试
+在客户主机中（172.25.254.100）
+ssh root@172.25.254.200		##连接时发现直接登陆不需要root登陆系统的密码认证
+
+
+
+####3.sshd的安全设定####
+78 PasswordAuthentication yes|no ##是否允许用户通过登陆系统的密码做sshd的认证
+48 PermitRootLogin yes|no	 ##是否允许root用户通过sshd服务的认证
+52 Allowusers student westos	 ##设定用户白名单，白名单出现默认不再名单中的用户不能使用sshd
+53 Denyusers	westos		 ##设定用户黑名单，黑名单出现默认不再名单中的用户可以使用sshd
+
+
+#####4.添加sshd登陆登陆信息#########
+vim /etc/motd	##文件内容就是登陆后显示的信息
+
+#####5.用户的登陆审计########
+
+1.w		##查看正在使用当前系统的用户
+	-f	##查看使用来源
+	-i	##显示IP
+	/var/run/utmp	
+2.last		##查看使用过并退出的用户信息
+	/var/log/wtmp
+3.lastb		##试图登陆但没成功的用户
+	/var/log/btmp
+
+
+

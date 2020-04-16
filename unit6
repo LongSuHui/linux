@@ -1,0 +1,280 @@
+##########系统进程及服务的控制#############
+
+##1.什么是进程##
+#正在进行的程序
+进程就是系统未完成并且正在进行的工作
+
+##2.查看进程##
+1）图形方式查看
+	gnome-system-monitor   graphical network operating management
+
+2)进程查看命令
+#	whatis ps；
+#	ps默认看到的进程是和当前shell相关的
+#	鼠标和命令打开firefox，ps命令看不到
+#	ps x | grep firefox ;
+#	使用的参数，看课件
+	ps 	-A	##所有进程
+		-a	##在当前环境中运行的进程，不包函环境信息
+		-u	##显示进程用户信息
+		 a	##在当前环境中运行的进程
+		 x	##列出系统中所有运行包含tty输出设备
+		 f	##显示进程的父子关系
+		 e	##显示进程的详细信息（系统资源的调用）
+##	ps常用组合
+	ps aux		##显示系统中所有进程并显示进程用户
+	ps ef		##显示进程详细信息并显示进程父子关系
+	ps ax		##显示当前系统中的所有进程
+
+##	显示进程指定信息
+	ps -o	xxx	##显示进程的指定信息
+		comm	##进程名称
+		user	##进程所有人
+		group	##进程所有组
+		%cpu	##进程cpu使用率
+		%mem	##进程内存使用率
+		pid	##进程id
+		nice	##进程优先级
+# ps ax -o %cpu ...
+
+##	进程排序	
+	ps ax  --sort=
+			+%cpu|-%cpu
+			+%mem|-%mem
+#ps ax --sort=+%cpu -o %cpu
+
+
+######练习######
+
+####stat中显示的信息 ##
+S	##进程状态	ps au
+l	##内存中有锁定空间,用来存放你写的字符（举例gedit）
+N	##优先级低	#ps a -o nice,comm
+<	##优先级高
++	##前台运行
+s	##顶级进程 #往上没有父级进程
+
+
+####3.进程优先级####
+#现在图形化查看
+1.进程的优先级范围
+-20～19
+
+2.优先级查看
+ps ax -o pid,nice,comm
+
+3.指定某个优先级开启进程
+nice -n 优先级数字	进程名称
+nice -n -5 vim &	##开启vim并且指定程序优先级为-5
+
+4.改变进程优先级
+#举例gedit
+reince -n 优先级数字	进程pid
+renice -n -5 1806	##改变1806进程的优先级为-5
+
+练习：过滤出系统cpu使用前五的进程
+ps ax  --sort=-%cpu -o %cpu,pid | grep -v PID | head -n 5
+
+#######练习######
+
+####4.环境中进程的前后台调用####
+jobs			##查看被打入环境后台的进程
+ctrl+z			##把占用终端的进程打入后台
+fg jobsnum		##把后台进程调回前台
+bg jobsnum		##把后台暂停的进程运行
+comm &			##让命令直接在后台运行
+#vim不能在后台运行，举例
+
+
+####5.进程信号####
+1.常用信号等级
+1		##进程重新加载配置 httpd,改端口
+2		##删除进程在内存中的数据 相当于ctrl+c   kill -2 pid（shell的pid）
+3		##删除鼠标在内存中的数据 ctrl+\
+9		##强行结束单个进程(不可被阻塞) #打开gedit后台运行，另开一个shell，用-15来关闭，不行，-9可以，但是gedit还在，因为内存中有锁定空间
+15		##正常关闭进程	 （可能会被阻塞）
+18		##运行暂停的进程
+19		##暂停某个进程	 （不能被阻塞）vim，shell
+20		##把进程打入后台	（可以被阻塞）-20 shell的pid，无效，因为被阻塞，gedit可以
+man 7 signal	##查看信号详细信息
+##父级进程结束了，子进程还没结束的话是因为内存中有锁定空间，子进程受系统初始化进程控管
+
+
+kill 	-信号 	进程pid
+killall -信号	进程名字 #开多个vim
+pkill	-u student -信号 #多个shell su - student	pkill -9 -u student
+
+SIGHUP     	终止进程     		终端线路挂断
+SIGINT     	终止进程     		中断进程
+SIGQUIT   	建立CORE文件终止进程，并且生成core文件
+SIGILL   	建立CORE文件       	非法指令
+SIGTRAP   	建立CORE文件       	跟踪自陷
+SIGBUS   	建立CORE文件       	总线错误
+SIGSEGV   	建立CORE文件       	段非法错误
+SIGFPE   	建立CORE文件       	浮点异常
+SIGIOT   	建立CORE文件       	执行I/O自陷
+SIGKILL   	终止进程     		杀死进程
+SIGPIPE   	终止进程     		向一个没有读进程的管道写数据
+SIGALARM   	终止进程     		计时器到时
+SIGTERM   	终止进程     		软件终止信号
+SIGSTOP   	停止进程     		非终端来的停止信号
+SIGTSTP   	停止进程     		终端来的停止信号
+SIGCONT   	忽略信号     		继续执行一个停止的进程
+SIGURG   	忽略信号     		I/O紧急信号
+SIGIO     	忽略信号     		描述符上可以进行I/O
+SIGCHLD   	忽略信号     		当子进程停止或退出时通知父进程
+SIGTTOU   	停止进程     		后台进程写终端
+SIGTTIN   	停止进程     		后台进程读终端
+SIGXGPU   	终止进程     		CPU时限超时
+SIGXFSZ   	终止进程     		文件长度过长
+SIGWINCH   	忽略信号     		窗口大小发生变化
+SIGPROF   	终止进程     		统计分布图用计时器到时
+SIGUSR1   	终止进程     		用户定义信号1
+SIGUSR2   	终止进程     		用户定义信号2
+SIGVTALRM 	终止进程     		虚拟计时器到时
+
+1) SIGHUP 
+本信号在用户终端连接(正常或非正常)结束时发出
+通常是在终端的控制进程结束时
+通知同一session内的各个作业
+这时它们与控制终端不再关联. 
+2) SIGINT 
+程序终止(interrupt)信号
+在用户键入INTR字符(通常是Ctrl-C)时发出 
+3) 
+SIGQUIT 和SIGINT类似
+但由QUIT字符(通常是Ctrl-)来控制
+进程在因收到SIGQUIT退出时会产生core文件
+在这个意义上类似于一个程序错误信号. 
+4) 
+SIGILL 执行了非法指令
+通常是因为可执行文件本身出现错误或者试图执行数据段
+堆栈溢出时也有可能产生这个信号. 
+5) 
+SIGTRAP 由断点指令或其它trap指令产生
+由debugger使用. 
+6) 
+SIGABRT 程序自己发现错误并调用abort时产生. 
+6) 
+SIGIOT 在PDP-11上由iot指令产生在其它机器上和SIGABRT一样. 
+7) 
+SIGBUS 非法地址
+包括内存地址对齐(alignment)出错. 
+eg: 访问一个四个字长的整数但其地址不是4的倍数. 
+8) 
+SIGFPE 在发生致命的算术运算错误时发出. 
+不仅包括浮点运算错误, 还包括溢出及除数为0等其它所有的算术的错误
+9) 
+SIGKILL 用来立即结束程序的运行. 本信号不能被阻塞, 处理和忽略. 
+10) 
+SIGUSR1 留给用户使用 
+11) 
+SIGSEGV 试图访问未分配给自己的内存, 或试图往没有写权限的内存地址写数据. 
+12) 
+SIGUSR2 留给用户使用 
+13)
+SIGPIPE Broken pipe 
+14) 
+SIGALRM 时钟定时信号, 计算的是实际的时间或时钟时间
+alarm函数使用该信号. 
+15) 
+SIGTERM 程序结束(terminate)信号
+与SIGKILL不同的是该信号可以被阻塞和处理
+通常用来要求程序自己正常退出
+shell命令kill缺省产生这个信号. 
+17) 
+SIGCHLD 子进程结束时, 父进程会收到这个信号. 
+18) 
+SIGCONT 让一个停止(stopped)的进程继续执行. 本信号不能被阻塞. 
+可以用一个handler来让程序在由stopped状态变为继续执行时完成特定的工作
+例如, 重新显示提示符 
+19) 
+SIGSTOP 停止(stopped)进程的执行
+注意它和terminate以及interrupt的区别: 
+该进程还未结束, 只是暂停执行. 本信号不能被阻塞, 处理或忽略. 
+20) 
+SIGTSTP 停止进程的运行
+但该信号可以被处理和忽略
+用户键入SUSP字符时 
+(通常是Ctrl-Z)发出这个信号 
+21) 
+SIGTTIN 当后台作业要从用户终端读数据时, 
+该作业中的所有进程会收到SIGTTIN信号
+缺省时这些进程会停止执行. 
+22) 
+SIGTTOU 类似于SIGTTIN, 但在写终端(或修改终端模式)时收到. 
+23) 
+SIGURG 有"紧急"数据或out-of-band数据到达socket时产生. 
+24) 
+SIGXCPU 超过CPU时间资源限制
+这个限制可以由getrlimit/setrlimit来读取/改变 
+25) 
+SIGXFSZ 超过文件大小资源限制. 
+26) 
+SIGVTALRM 虚拟时钟信号. 类似于SIGALRM, 但是计算的是该进程占用的CPU时间. 
+27) 
+SIGPROF 类似于SIGALRM/SIGVTALRM
+但包括该进程用的CPU时间以及系统调用的时间. 
+28) 
+SIGWINCH 窗口大小改变时发出. 
+29) 
+SIGIO 文件描述符准备就绪, 可以开始进行输入/输出操作. 
+30) 
+SIGPWR Power failure 
+
+有两个信号可以停止进程:SIGTERM和SIGKILL。 
+SIGTERM比较友好，进程能捕捉这个信号
+根据您的需要来关闭程序。
+在关闭程序之前您可以结束打开的记录文件和完成正在做的任务
+在某些情况下，假如进程正在进行作业而且不能中断，那么进程可以忽略这个SIGTERM信号。
+
+对于SIGKILL信号，进程是不能忽略的。
+这是一个 “我不管您在做什么,立刻停止”的信号
+假如您发送SIGKILL信号给进程，Linux就将进程停止在那里
+
+
+######6.进程的动态监控#######
+1.top
+	1.	##显示cpu每个核的负载
+	s	##调整刷新频率
+	c	##CPU负载排序
+	m	##内存使用量排序
+	h	##查看帮助
+	u	##查看指定用户进程
+	k	##对指定进程发起信号
+	q	##退出
+
+
+#######7.控制服务#########
+#先配置虚拟机IP
+ps aux | grep sshd
+kill -15 pid
+
+1.什么是服务
+服务开启对本机无意义，对客户有意义
+
+2.用什么控制服务
+	系统初始化进程可以对服务进行相应的控制
+
+3.当前系统初始化进程是什么
+	systemd		##系统初始化进程
+	pstree		##显示系统中的进程树
+
+4.进程控制命令
+	ssh -------->sshd	##ssh和sshd的区别
+	client       server
+
+	systemctl			##服务控制命令
+	systemctl 	status	sshd	##查看服务状态，inactive(不可用)，active（可用）
+	systemctl	start 	sshd	##开启服务
+	systemctl	stop 	sshd	##关闭服务
+	systemctl 	restart	sshd	##重启服务
+	systemctl 	reload	sshd	##重新加载服务配置
+	systemctl 	enable	sshd	##设定服务开机启动
+	systemctl	disable	sshd	##设定服务开机不启动
+	systemctl	list-units	##列出已经开启服务当前状态 sshd有，httpd没有
+	systemctl 	list-unit-files	##列出所有服务开机启动的状态 disable,enable,static(依赖性程序，在别的程序开启时会自动开启)
+	systemctl 	list-dependencies	##列出服务的倚赖
+	#systemctl list-dependencies sshd；找一个服务查看开机启动状态
+	systemctl	set-default multi-user.target	##设定系统启动级别为多用户模式（无图形）
+	systemctl	set-default graphical.target	##设定系统启动级别为图形模式

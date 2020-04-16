@@ -1,0 +1,220 @@
+##########文件权限##############
+
+####1.文件权限存在的意义####
+系统最底层安全设定方法之一
+保证文件可以被可用的用户做相应操作
+
+####2.文件权限的查看#######
+ls -l 	file
+ls -ld	dir
+ll 	file
+ll -d	dir
+
+####3.文件权限的读取#######
+
+-  |rw-rw-r--| 1 |kiosk | kiosk | 0 | Jul 21 09:18 | file
+[1]    [2]    [3]   [4]    [5]   [6]        [7]       [8]
+
+
+[1]
+文件的类型
+-	##空文件，或者文本
+d	##目录
+l	##软链接	ln -s file westos	ll westos
+s	##socket 套接字	yum install -y mariadb-server  ll /var/lib/mysql/
+b	##block	块设备  ll /dev/sda
+c	##字符设备	ls /dev/pts	date > /dev/pts/5
+
+[2]
+文件的权限
+rw-|rw-|r--
+ 1   2   3
+1.[u] 文件拥有者对文件能做什么操作
+2.[g] 文件所有组对文件能做什么操作
+3.[o] 其他人对文件能做什么操作
+
+[3]
+对文件：文件硬链接个数（文件内容被记录的次数） #ln file westos, ls -li file westos, rm -fr file
+对目录：目录中子目录的个数(不是文件) #mkdir test, ls -ld test
+
+[4]
+文件的所有人
+
+[5]
+文件所有组
+
+[6]
+对文件：文件大小
+对目录：目录中子文件元数据（matedate可以理解为文件的属性）大小
+[7]
+文件的内容被修改的时间
+
+[8]
+文件的名称
+
+#####4.如何改变文件的所有人和所有组#####
+# mkdir /mnt/westos
+# touch /mnt/file
+# touch /mnt/file{1..3}
+# touch /mnt/westos/westosfile{1..3}
+# ls -lR /mnt
+# watch -n 1 ls -lR
+
+
+chown|chgrp
+
+chown   	username	file|dir
+chown   	user.group	file|dir
+chown	-R	user.group	dir
+
+chgrp		group		file|dir
+chgrp	-R	group		dir
+
+
+#####5.如何改变文件的权限
+1.对权限的理解
+r
+	对文件：是否可以查看文件中的内容   --->cat file
+	对目录：是否可以查看目录中有什么子文件或者子目录 ---> ls dir
+w
+	对文件：是否可以改变文件里面记录的字符
+	对目录：是否可以对目录中子目录或子文件的元数据进行更改
+x
+	对文件：是否可以通过文件名称调用文件内记录的程序
+	对目录：是否可以进入目录
+
+
+2.更改方式
+chmod	<u|g|o><+|-|=><r|w|x>	file|dir
+chmod 	u+x	/mnt/file1
+chmod 	g-r	/mnt/file2
+chmod	ug-r	/mnt/file3
+chmod	u-r,g+x	/mnt/file4
+chmod	-r	/mnt/file5
+chmod	o=r-x	/mnt/file6
+
+rwx
+210
+r=4
+w=2
+x=1
+
+r-x|r--|--x
+ 5   4   1
+
+chmod 541 /mnt/file1
+
+7=rwx
+6=rw-
+5=r-x
+4=r--
+3=-wx
+2=-w-
+1=--x
+0=---
+
+
+#######6.umask###
+umask 	系统建立文件是默认保留的权力
+umask  077		##临时设定系统预留权限为077
+
+目录755-022
+文件644=755-111		##内核里去掉的
+
+永久更改umask
+vim /etc/profile	##系统配置文件
+59 if [ $UID -gt 199 ] && [ "`id -gn`" = "`id -un`" ]; then
+60     umask 002		##普通用户的umask
+61 else
+62     umask 077		##超级用户的umask
+63 fi
+
+vim /etc/bashrc		##shell配置文件
+70     if [ $UID -gt 199 ] && [ "`id -gn`" = "`id -un`" ]; then
+71        umask 002
+72     else 
+73        umask 077
+74     fi
+
+
+source /etc/profile		#让更改立即生效
+source /etc/bashrc
+
+#######7.特殊权限######
+1.sticky	##粘制位
+作用：
+	只针对目录生效，当一个目录上有sticky权限时
+	在这个目录中的文件智能被文件的所有者删除
+
+设定方式：
+	chmod o+t 	dir
+	chmod 1xxx 	dir
+
+2.sgid		##强制位
+作用
+	对文件：	只针对与二进制可执行文件 #举例watch命令 watch -n 1 date
+			当文件上有sgid时任何人执行此文件产成的进程都属于文件的组	#chgrp student /bin/watch; 再问watch进程属于谁，哪个组(还是root用户root组);切换到普通用户执行再看进程属于谁; ps ax -o comm,user,group | grep watch
+	对目录：
+			当目录上有sgid权限时任何人在此目录中建立的文件都属于目录的所有组	#ls -ld /sc;touch /sc/file1(file1属于谁)；加上sgid，再看
+
+设定方式
+	chmod g+s  file|dir
+	chmod 2xxx file|di
+
+3.suid		##冒险位
+	只针对与2进制可执行文件
+	当文件上有suid时任何人执行这个文件中记的程序产生的进程都属于文件的所有人
+#用/bin/watch做演示，先把权限改为755，再改变/bin/rm命令的所有人为tom，用tom用户运行，再加上suid，用tom运行，再用/bin/rm解释
+	
+设定方式
+	chmod u+s  file
+	chmod 4xxx file
+
+
+#######acl权限列表######
+1.作用
+	让特定的用户对特定的文件拥有特定权限
+
+2.acl列表查看
+	-rw-rwxr--+ 1 root root 0 Jul 21 15:45 file
+		  ^	
+		acl开启
+
+	getfacl file	##查看acl开启的文件的权限
+	# file: file	##文件名称
+	# owner: root	##文件拥有者
+	# group: root	##文件拥有组
+	user::rw-	##文件拥有人的权限
+	user:kiosk:rwx	##指定用户的权限
+	group::r--	##文件拥有组的权力
+	mask::rwx	##能赋予用户的最大权力伐值
+	other::r--	##其他人的权限
+
+3.acl列表的管理
+
+setfacl  -m u:username:rwx file	##设定username对file拥有rwx权限；setfact -m u:student:rwx file
+setfacl  -m g:group:rwx	file	##设定group组成员对file拥有rwx权限；setfacl -m g:root:0 file
+setfacl  -x u:username	file	##从acl列表中删除username
+setfacl  -b file		##关闭file上的acl列表
+##列表是空的不代表列表没开
+
+4.mask值
+在权限列表中mask标示能生效的权力值
+当用chmod减小开启acl的文件权限时mask值会发生改变
+
+chmod g-w westos 	##看到减掉的是mask的值
+
+如果要恢复mask值
+setfacl -m m:rw westos
+
+5.acl的默认权限设定
+#mkdir /mnt/westos
+#setfacl -m u:student:rwx westos
+#切换到student，可以新建文件
+#再切换到root，mkdir /mnt/westos/test，那么这个目录对于student不可写，怎么办
+#setfacl -m d:u:student:rwx /mnt/westos
+acl默认权限只针对目录设定
+"acl权限只针对设定完成之后新建立的文件或目录生效，而已经存在的文件是不会继承默认权限"
+
+setfacl -m d:u:student:rwx /mnt/westos
+

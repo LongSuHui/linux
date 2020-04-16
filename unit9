@@ -1,0 +1,172 @@
+#######系统日志管理#######
+#/var/log/messages有日志，把sshd添加一个字母使服务报错
+#为什么日志会到/var/log/messages里
+#再把sshd改错，关闭rsyslog服务，再看，没有日志
+#1.rsyslog#	##此服务时用来采集系统日志的，他不产生日志，只是起到采集作用
+
+#2.rsyslog的管理#
+#vim /etc/rsyslog.conf
+/var/log/messages		##服务信息日志
+/var/log/secure			##系统登陆日志
+/var/log/cron			##定时任务日志
+/var/log/maillog		##邮件日志
+/var/log/boot.log		##系统启动日志
+
+指定日志采集路径
+
+什么类型的日志.什么级别的日志		/var/log/file		##日志采集规则
+
+##日志类型分为：
+auth                    ##pam产生的日志
+authpriv                ##ssh,ftp等登录信息的验证信息
+cron                    ##时间任务相关
+kern                    ##内核
+lpr                     ##打印
+mail                    ##邮件
+mark(syslog)–rsyslog    ##服务内部的信息,时间标识
+news                    ##新闻组
+user                    ##用户程序产生的相关信息
+uucp                    ##unix to unix copy, unix主机之间相关的通讯
+local 1~7               ##自定义的日志设备
+
+##日志级别分为：
+debug                   ##有调式信息的，日志信息最多
+info                    ##般信息的日志，最常用
+notice                  ##最具有重要性的普通条件的信息
+warning                 ##警告级别
+err                     ##错误级别，阻止某个功能或者模块不能正常工作的信息
+crit                    ##严重级别，阻止整个系统或者整个软件不能正常工作的信息
+alert                   ##需要立刻修改的信息
+emerg                   ##内核崩溃等严重信息
+none                    ##什么都不记录
+
+##注意：从上到下，级别从低到高，记录的信息越来越少
+##详细的可以查看手册: man 3 syslog
+
+3.日志的远程同步
+
+在日志发送方：
+vim /etc/rsyslog.conf
+*.*	@172.25.254.200		##"@"表示udp协议发送，"@@"表示tcp协议发送
+
+systemctl restart rsyslog
+
+
+在日志接收方：
+vim /etc/rsyslog.conf
+15 $ModLoad imudp		##日志接收模块
+16 $UDPServerRun 514		##开启接收端口
+
+systemctl restart rsyslog	
+systemctl stop firewalld 	##关闭火墙
+systemctl disable firewalld 	##设定火墙开机关闭
+
+测试：
+在发送放和接受放都清空日志文件
+> /var/log/messages
+
+在日志的发送方
+logger test
+
+cat /var/log/messages   ##查看日志已经生成
+
+在日志接收方查看
+cat /var/log/messages
+
+
+###日志采集格式的设定###
+vim /etc/rsyslog.conf
+
+$template LOGFMT, "%timegenerated% %FROMHOST-IP% %syslogtag% %msg%\n"
+
+%timegenerated%                 ##显示日志时间
+%FROMHOST-IP%                   ##显示主机ip
+%syslogtag%                     ##日志记录目标
+%msg%                           ##日志内容
+\n                              ##换行
+
+*.*		/var/log/westos;LOGFMT
+
+cat /var/log/westos
+
+
+####时间同步服务####
+#先改client主机时间 date 11111111
+服务名称
+chronyd
+
+##在服务端：
+vim /etc/chrony.conf
+22 allow 172.25.254.0/24		##允许那些客户端来同步本机时间
+29 local stratum 10			##本机不同步任何主机的时进，本机作为时间源
+
+systemctl restart chronyd
+timedatectl set-timezone Asia/Shanghai	##更改当前时区为东8区
+
+
+##在客户端：
+vim /etc/chrony.conf
+server 172.25.254.200 iburst		##本机立即同步200主机的时间
+
+systemctl restart chronyd
+timedatectl set-timezone Asia/Shanghai  ##更改当前时区为东8区
+
+#测试：
+#在客户端
+[root@foundation30 ~]# chronyc sources -v
+210 Number of sources = 1
+
+  .-- Source mode  '^' = server, '=' = peer, '#' = local clock.
+ / .- Source state '*' = current synced, '+' = combined , '-' = not combined,
+| /   '?' = unreachable, 'x' = time may be in error, '~' = time too variable.
+||                                                 .- xxxx [ yyyy ] +/- zzzz
+||      Reachability register (octal) -.           |  xxxx = adjusted offset,
+||      Log2(Polling interval) --.      |          |  yyyy = measured offset,
+||                                \     |          |  zzzz = estimated error.
+||                                 |    |           \
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+^* foundation200.ilt.example    10   6    17    36  -3096ns[ -102us] +/- 1417us
+
+
+
+
+#####timedatectl 命令#####
+timedatectl		##管理系统时间
+timedatectl             status                  ##显示当前时间信息
+                        set-time                ##设定当前时间
+                        set-timezone            ##设定当前时区
+                        set-local-rtc 0|1       ##设定是否使用utc时间
+                        list-timezone           ##查看支持的所有时区
+			timedatectl set-time "2018-08-09 12:00:00"
+			biso时间初始化为 lundun时间		bios time + timezone（系统时间）
+			cat /etc/adjtime
+#####journal#####
+
+1.journalctl		##日志查看工具
+	-n 3		##查看最近3条日志
+	-p err		##查看错误日志
+	-o verbose	##查看日志的详细参数 （举例sshd，重启pid会变，查看原来pid的日志）journalctl _PID=827 _COMM=sshd
+	--since 	##查看从什么时间开始的日志
+	--until		##查看到什么时间为止的日志
+	journalctl --since "2018-11-11 12:00" --until "2018-11-11 12:01" (查看时间段内的日志)
+
+journalctl是查看内存中日志，不存储
+
+2.如何使用systemd-journald保存系统日志
+默认systemd-journald是不保存系统日志到硬盘的
+那么关机后再次开机只能看到本次开机之后的日志
+上以次关机之前的日志是无法查看的
+#重启演示
+
+mkdir /var/log/journal
+chgrp systemd-journal /var/log/journal
+chmod g+s /var/log/journal
+ps aux | grep systemd-journal
+killall -1 systemd-journald
+
+ls /var/log/journal
+946cb0e817ea4adb916183df8c4fc817
+
+ll 946cb0e817ea4adb916183df8c4fc817	#看目录时间，这个时间之后的都记录,重启测试
+

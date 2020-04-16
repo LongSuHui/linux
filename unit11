@@ -1,0 +1,73 @@
+######虚拟机管理###
+先图形安装虚拟机，Server with GUI
+
+##1.脚本安装虚拟机
+#!/bin/bash
+virt-install \
+--cdrom /home/kiosk/Desktop/rhel-server-7.3-x86_64-dvd.iso \
+--ram 1024 \
+--cpus 1 \
+--disk /var/lib/libvirt/images/test.qcow2,bus=virtio,size=9 \ ##不知道等下看
+--name test \
+--network bridge=br0,model=virtio &	##先不写model，安装进去看，对应着写
+
+##再次用这个脚本安装虚拟机会报错，因为有test虚拟机
+##不看输出结果， & > /dev/null
+
+##2.虚拟机管理命令
+virt-manager		##开机虚拟机管理器
+virsh list		##显示正在运行的虚拟机
+virsh list --all	##查看所有虚拟机
+virsh start desktop	##打开
+virsh  shutdown desktop	##正常关闭虚拟机	##必须进系统
+virsh destroy desktop	##强行关闭
+virt-viewer desktop	##显示虚拟机
+virsh undefine test	##删除虚拟机
+
+
+
+在家中模拟虚拟机的恢复
+准备1个已经安装好的虚拟机
+mv /etc/libvirt/qemu/test.xml  /mnt/		##硬件信息
+mv /var/lib/libvirt/images/test.qcow2  /mnt/	##硬盘
+
+在虚拟机管理器中删除这个装好的虚拟机
+
+模拟恢复过程
+cd /mnt	
+virsh	create	test.xml		##用硬件信息文启动虚拟机（一次性，关了就没了）
+在操作过程中会有以下错误：
+error: Cannot access storage file '/var/lib/libvirt/images/test.qcow2' (as uid:107, gid:107): No such file or directory
+
+解决方案：
+mv /mnt/test.qcow2  /var/lib/libvirt/images/
+
+virsh define test.xml			##永久恢复虚拟机
+
+####虚拟机快照####
+qemu-img create -f qcow2 -b test.qcow2 node1
+##查看desktop虚拟机信息：file rh124-desktop-vda.ovl
+
+#讲解reset的原理，并操作
+
+脚本创建虚拟机
+#!/bin/bash
+qemu-img create -f qcow2 -b \
+/var/lib/libvirt/images/$1.qcow2 \	##$1是已经存在的虚拟机
+/var/lib/libvirt/images/$2.qcow2	##$2是快照
+
+virt-install \
+--name $2 \
+--ram 1024 \
+--cpus 1 \
+--disk /var/lib/libvirt/images/$2.qcow2,bus=virtio \
+--network bridge=br0,model=virtio \
+--import &
+
+##reset虚拟机
+#!/bin/bash
+virsh destroy $1
+rm -fr /var/lib/libvirt/images/$1.qcow2		##$1是快照，$2是母盘
+qemu-img create -f qcow2 -b /var/lib/libvirt/images/$2.qcow2 /var/lib/libvirt/images/$1.qcow2
+virsh start $1
+virt-viewer $1 &

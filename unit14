@@ -1,0 +1,85 @@
+######系统延时任务及定时任务######
+
+##1.系统延时任务##
+#touch /mnt/file{1..10}
+[root@localhost ~]# at 23:37		##设定任务执行时间
+at> rm -fr /mnt/*			##任务动作	
+at> <EOT>    <<  CTRL +D		##用ctrl+D发起任务
+
+[root@localhost ~]# at now+1min		##延时1分钟
+at> rm -fr /mnt/*
+at> <EOT>
+
+at -l					##查看任务列表
+at -c	任务号				##查看任务内容
+at -r	任务号				##取消任务执行
+
+注意：
+当任务有输出时，输出会以邮件的型是发送给at任务的发起者
+at now+1min
+at> echo hello
+at> <EOT>
+
+mail -u root		##查看超级用户邮件
+1			##查看第一封邮件
+q			##退出
+		
+> /var/spool/mail/root	##清空邮件
+
+
+###2.at任务的黑白名单###
+/etc/at.deny		##系统中默认存在，在此文件中出现的用户不能执行at
+/etc/at.allow		##系统中默认不存在，当文件出现，普通用户不能执行at
+			##只有在名单中的用户可以，并且/etc/at.deny失效
+
+
+###3.系统定时任务###
+#man 5 crontab
+使用服务 crond
+1.crontab 时间表示方式
+* * * * *       		##每分钟
+*/2 * * * *			##每两分钟
+*/2 09-17 * * *			##早7-晚5每两分钟
+*/2 */2 * * *			##每隔2小时每两分钟
+*/2 09-17 1 3,5 5		##3月和5月每周周五及3月1日和月1日
+*/2 09-17 * * 5			##每周周五早9晚5
+
+2.系统控制crontab的服务
+crond.service			##当程序开启时定时任务生效
+anacron				##检测系统未执行的crontab（当crond服务停掉再开启）
+
+cat /var/spool/cron/
+
+3.crontab 
+crontab -e -u			##编辑crontab
+crontab -l -u			##列出crontab
+crontab -r -u			##删除crontab
+
+4.文件方式设定定时任务
+vim /etc/cron.d/file		##file名称任意
+* * * * *   username	action
+* * * * *   root	rm -fr /mnt/*
+
+非交互式：echo "* * * * * root rm -fr /mnt/*" > /etc/cron.d/westos
+
+cd /etc/cron.
+这种方式定义的crontab使用crontab -l看不到
+因为/etc/cron.d目录只对超级用户可写
+
+5.crontab的黑白名单
+/etc/cron.deny		##系统中默认存在，在此文件中出现的用户不能执行crontab
+/etc/cron.allow		##系统中默认不存在，当文件出现，普通用户不能执行crontab                          	  ##只有在名单中的用户可以，并且/etc/at.deny失效
+			##这两个名单都不会影响/etc/cron.d/目录中定时任务的发起及执行
+* * * * * westos touch /home/westos/file{1..10}
+
+####4.系统中临时文件的管理方式####
+cd /usr/lib/tmpfiles.d/
+#vim tmp.conf
+vim westos.conf
+d   /mnt/westos    777 root root 5s  ##会自动建立/mnt/westos
+#touch /mnt/westos/file
+#systemd-tmpfiles --clean /usr/lib/tmpfiles.d/*
+#建立的临时文件就会被删除
+
+systemd-tmpfiles --create /usr/lib/tmpfiles.d/*	##读取里面所有文件并按照其规则去建立
+systemd-tmpfiles --clean /usr/lib/tmpfiles.d/*	##清理临时文件，目录清理不了

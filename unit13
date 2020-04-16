@@ -1,0 +1,32 @@
+#########kickstart 自动安装脚本的制作#####
+
+1.yum install system-config-kickstart  httpd -y
+2.system-config-kickstart      -----> /var/www/html/ks.cfg
+
+ksvalidator ks.cfg ##只能检测语法正确性
+物理机要有dhcp
+
+#!/bin/bash
+virt-install \
+--name $1 \
+--ram 1024 \
+--cpus 1 \
+--disk /var/lib/libvirt/images/$1.qcow2,bus=virtio,size=8 \
+--network bridge=br0,model=virtio \
+--location http://172.25.254.250/rhel7.3/x86_64/dvd \
+--extra-args ks=http://172.25.254.100/ks.cfg &
+
+%packages
+@base
+lftp
+%end
+
+%post
+cat >>/etc/yum.repos.d/yum.repo <<EOF
+[rhel7.3]
+name=rhel7.3
+baseurl=http://172.25.254.250/rhel7.3/x86_64/dvd
+gpgcheck=0
+EOF
+%end
+
